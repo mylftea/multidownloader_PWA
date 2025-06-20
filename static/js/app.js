@@ -1,3 +1,59 @@
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('SW registered:', reg);
+    } catch (err) {
+      console.error('SW registration failed:', err);
+    }
+  });
+}
+
+let installPromptEvent;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPromptEvent = e;
+  // Show a custom "Install" button…
+});
+
+function triggerInstall() {
+  if (installPromptEvent) {
+    installPromptEvent.prompt();
+    installPromptEvent.userChoice.then(choice => {
+      console.log('User choice:', choice.outcome);
+    });
+    installPromptEvent = null;
+  }
+}
+
+
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // Show popup after a short delay
+  setTimeout(() => {
+    document.getElementById('installPopup').style.display = 'flex';
+  }, 1500); // 1.5 second delay
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    console.log(`User choice: ${result.outcome}`);
+    deferredPrompt = null;
+  }
+  document.getElementById('installPopup').style.display = 'none';
+});
+
+document.getElementById('closePopup').addEventListener('click', () => {
+  document.getElementById('installPopup').style.display = 'none';
+});
+
+
 let downloadQueue = [];
 let isPaused = false;
 let currentLang = "en";
@@ -86,7 +142,8 @@ const translations = {
     logsTitle: "Download Logs",
     status: { Queued: "Queued", Downloading: "Downloading...", Downloaded: "Downloaded", Paused: "Paused", Failed: "Failed" }
   },
-  fil: { title: "Pang-download ng Maramihan", urlLabel: "Ilagay ang URL:", formatLabel: "Piliin ang Format:",
+  fil: {
+    title: "Pang-download ng Maramihan", urlLabel: "Ilagay ang URL:", formatLabel: "Piliin ang Format:",
     formats: { mp4: "MP4 (Bidyo)", mp3: "MP3 (Awdio)", m4a: "M4A (Awdio)", wav: "WAV (Awdio)" },
     addQueue: "➕ Idagdag sa Pila", start: "⬇️ Simulan ang Pag-download", pause: "⏸ I-pause", resume: "▶ Ipagpatuloy",
     logsTitle: "Mga Log ng Pag-download",
@@ -190,8 +247,8 @@ async function processQueue() {
 
     const blob = new Blob([`Downloaded from ${item.url}`], {
       type: item.format === 'mp4' ? 'video/mp4' :
-            item.format === 'mp3' ? 'audio/mpeg' :
-            item.format === 'm4a' ? 'audio/mp4' :
+        item.format === 'mp3' ? 'audio/mpeg' :
+          item.format === 'm4a' ? 'audio/mp4' :
             'audio/wav'
     });
     const a = document.createElement('a');
@@ -238,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const pathName = new URL(url).pathname;
       const last = pathName.split('/').pop();
       if (last.includes('.')) extracted = last;
-    } catch {}
+    } catch { }
     let fallback = `file_${downloadQueue.length + 1}.${format}`;
     let fileName = extracted || fallback;
 
@@ -272,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modeLabel.textContent = '🌙 Dark';
   }
 
-  
+
   const allLangs = {
     en: "🇺🇸 English", fil: "🇵🇭 Filipino", es: "🇪🇸 Español", fr: "🇫🇷 Français", de: "🇩🇪 Deutsch",
     it: "🇮🇹 Italiano", zh: "🇨🇳 中文", ja: "🇯🇵 日本語", ko: "🇰🇷 한국어", hi: "🇮🇳 हिंदी",
@@ -295,11 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(res => res.json())
       .then(data => {
         const country = data.country || '';
-        
-  const detectMap = {
-    PH: 'fil', ES: 'es', FR: 'fr', DE: 'de', IT: 'it', CN: 'zh', JP: 'ja', KR: 'ko',
-    IN: 'hi', SA: 'ar', RU: 'ru', BR: 'pt', VN: 'vi', TH: 'th'
-  };
+
+        const detectMap = {
+          PH: 'fil', ES: 'es', FR: 'fr', DE: 'de', IT: 'it', CN: 'zh', JP: 'ja', KR: 'ko',
+          IN: 'hi', SA: 'ar', RU: 'ru', BR: 'pt', VN: 'vi', TH: 'th'
+        };
 
         const lang = detectMap[country] || 'en';
         langSelect.value = lang;
