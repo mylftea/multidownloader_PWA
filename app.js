@@ -1,59 +1,3 @@
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      console.log('SW registered:', reg);
-    } catch (err) {
-      console.error('SW registration failed:', err);
-    }
-  });
-}
-
-let installPromptEvent;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  installPromptEvent = e;
-  // Show a custom "Install" button…
-});
-
-function triggerInstall() {
-  if (installPromptEvent) {
-    installPromptEvent.prompt();
-    installPromptEvent.userChoice.then(choice => {
-      console.log('User choice:', choice.outcome);
-    });
-    installPromptEvent = null;
-  }
-}
-
-
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-
-  // Show popup after a short delay
-  setTimeout(() => {
-    document.getElementById('installPopup').style.display = 'flex';
-  }, 1500); // 1.5 second delay
-});
-
-document.getElementById('installBtn').addEventListener('click', async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
-    console.log(`User choice: ${result.outcome}`);
-    deferredPrompt = null;
-  }
-  document.getElementById('installPopup').style.display = 'none';
-});
-
-document.getElementById('closePopup').addEventListener('click', () => {
-  document.getElementById('installPopup').style.display = 'none';
-});
-
-
 let downloadQueue = [];
 let isPaused = false;
 let currentLang = "en";
@@ -372,3 +316,60 @@ document.addEventListener('DOMContentLoaded', () => {
   const storedLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
   document.getElementById('logContainer').innerHTML = storedLogs.map(l => `<div>📝 ${l}</div>`).join('');
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('SW registered:', reg);
+    } catch (err) {
+      console.error('SW registration failed:', err);
+    }
+  });
+}
+
+let installPromptEvent;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPromptEvent = e;
+  // Show a custom "Install" button…
+});
+
+function triggerInstall() {
+  if (installPromptEvent) {
+    installPromptEvent.prompt();
+    installPromptEvent.userChoice.then(choice => {
+      console.log('User choice:', choice.outcome);
+    });
+    installPromptEvent = null;
+  }
+}
+
+
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // Show popup after a short delay
+  setTimeout(() => {
+    document.getElementById('installPopup').style.display = 'flex';
+  }, 1500); // 1.5 second delay
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    console.log(`User choice: ${result.outcome}`);
+    deferredPrompt = null;
+  }
+  document.getElementById('installPopup').style.display = 'none';
+});
+
+document.getElementById('closePopup').addEventListener('click', () => {
+  document.getElementById('installPopup').style.display = 'none';
+});
+
+
