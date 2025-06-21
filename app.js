@@ -310,13 +310,7 @@ async function processQueue() {
         document.getElementById('logContainer').innerHTML = [...previousLogs, logEntry]
           .map(l => `<div>📝 ${l}</div>`).join('');
       }
-
-
     }, pollInterval);
-
-
-
-
   }
 }
 
