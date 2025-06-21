@@ -189,30 +189,33 @@ async function processQueue() {
       await new Promise(r => setTimeout(r, 200));
     }
 
-    const blob = new Blob([`Downloaded from ${item.url}`], {
-      type: item.format === 'mp4' ? 'video/mp4' :
-        item.format === 'mp3' ? 'audio/mpeg' :
-          item.format === 'm4a' ? 'audio/mp4' :
-            'audio/wav'
-    });
-    try {
-      const response = await fetch(item.url);
-      if (!response.ok) throw new Error('Network response was not ok');
-      const blob = await response.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = item.fileName;
-      a.click();
-      a.remove();
-      item.status = localizeStatus("Downloaded");
-      item.progress = 100;
-      logList.push(`✅ ${item.url} saved as ${item.fileName}`);
-      updateQueueDisplay();
-    } catch (err) {
-      item.status = localizeStatus("Failed");
-      logList.push(`❌ Failed to download: ${item.url}`);
-      updateQueueDisplay();
-    }
+    fetch('http://localhost:3000/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, format })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.fileUrl) {
+          const a = document.createElement('a');
+          a.href = `http://localhost:3000${data.fileUrl}`;
+          a.download = '';
+          a.click();
+          item.status = localizeStatus("Downloaded");
+        } else {
+          item.status = localizeStatus("Failed");
+          alert('Download failed: ' + data.message);
+        }
+        updateQueueDisplay();
+      })
+      .catch(err => {
+        item.status = localizeStatus("Failed");
+        console.error('Backend error:', err);
+        updateQueueDisplay();
+        alert('Server error or download failed.');
+      });
+    item.progress = 100;
+    logList.push(`Downloaded: ${item.fileName} (${item.title})`);
   }
 
   const previousLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
