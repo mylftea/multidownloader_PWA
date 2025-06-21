@@ -330,7 +330,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   }, 1500); // 1.5 second delay
 });
 
-document.getElementById('installBtn').addEventListener('click', async () => {
+document.getElementById('installPopupBtn').addEventListener('click', async () => {
   if (deferredPrompt) {
     deferredPrompt.prompt();
     const result = await deferredPrompt.userChoice;
