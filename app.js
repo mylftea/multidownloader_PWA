@@ -120,7 +120,7 @@ async function processQueue() {
     }
 
     try {
-      const res = await fetch('http://localhost:3000/download', {
+      const res = await fetch('https://my-multidownload-backend-server.onrender.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: item.url, format: item.format })
@@ -129,7 +129,7 @@ async function processQueue() {
       const data = await res.json();
       if (data.fileUrl) {
         const a = document.createElement('a');
-        a.href = `http://localhost:3000${data.fileUrl}`;
+        a.href = `https://my-multidownload-backend-server.onrender.com${data.fileUrl}`;
         a.download = '';
         a.click();
         item.status = localizeStatus("Downloaded");
