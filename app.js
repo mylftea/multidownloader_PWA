@@ -131,6 +131,31 @@ function fetchMetadata(url, callback) {
     .catch(() => callback(null));
 }
 
+// function updateQueueDisplay() {
+//   const qList = document.getElementById('queueList');
+//   qList.innerHTML = '';
+//   downloadQueue.forEach((item, index) => {
+//     const el = document.createElement('div');
+//     el.className = 'queue-item';
+//     el.innerHTML = `
+//       <div><strong>#${index + 1}</strong> | ${item.url}</div>
+//       <div>Status: ${item.status}</div>
+//       <div>📁 ${item.fileName}</div>
+//       ${item.title ? `<div><strong>📺 ${item.title}</strong></div>` : ''}
+//       ${item.thumbnail ? `<img src="${item.thumbnail}" alt="thumbnail" style="max-width:100%; border-radius:8px;" />` : ''}
+//       <div style="background:#ddd; border-radius:4px; overflow:hidden;">
+//         <div style="width:${item.progress || 0}%; background:#4CAF50; height:8px;"></div>
+//       </div>
+//       <div>
+//         <button onclick="moveUp(${index})">⬆️</button>
+//         <button onclick="moveDown(${index})">⬇️</button>
+//         <button onclick="removeItem(${index})">🗑</button>
+//       </div>
+//     `;
+//     qList.appendChild(el);
+//   });
+// }
+
 function updateQueueDisplay() {
   const qList = document.getElementById('queueList');
   qList.innerHTML = '';
@@ -141,15 +166,8 @@ function updateQueueDisplay() {
       <div><strong>#${index + 1}</strong> | ${item.url}</div>
       <div>Status: ${item.status}</div>
       <div>📁 ${item.fileName}</div>
-      ${item.title ? `<div><strong>📺 ${item.title}</strong></div>` : ''}
-      ${item.thumbnail ? `<img src="${item.thumbnail}" alt="thumbnail" style="max-width:100%; border-radius:8px;" />` : ''}
       <div style="background:#ddd; border-radius:4px; overflow:hidden;">
         <div style="width:${item.progress || 0}%; background:#4CAF50; height:8px;"></div>
-      </div>
-      <div>
-        <button onclick="moveUp(${index})">⬆️</button>
-        <button onclick="moveDown(${index})">⬇️</button>
-        <button onclick="removeItem(${index})">🗑</button>
       </div>
     `;
     qList.appendChild(el);
@@ -171,101 +189,174 @@ function removeItem(i) {
   updateQueueDisplay();
 }
 
+// async function processQueue() {
+//   const logList = [];
+//   for (let i = 0; i < downloadQueue.length; i++) {
+//     const item = downloadQueue[i];
+//     if (item.status !== localizeStatus("Queued") && item.status !== localizeStatus("Paused")) continue;
+//     item.status = localizeStatus("Downloading");
+//     updateQueueDisplay();
+//     for (let p = 0; p <= 100; p += 10) {
+//       if (isPaused) {
+//         item.status = localizeStatus("Paused");
+//         updateQueueDisplay();
+//         return;
+//       }
+//       item.progress = p;
+//       updateQueueDisplay();
+//       await new Promise(r => setTimeout(r, 200));
+//     }
+
+//     fetch('http://localhost:3000/download', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ url, format })
+//     })
+//       .then(res => res.json())
+//       .then(data => {
+//         if (data.fileUrl) {
+//           const a = document.createElement('a');
+//           a.href = `http://localhost:3000${data.fileUrl}`;
+//           a.download = '';
+//           a.click();
+//           item.status = localizeStatus("Downloaded");
+//         } else {
+//           item.status = localizeStatus("Failed");
+//           alert('Download failed: ' + data.message);
+//         }
+//         updateQueueDisplay();
+//       })
+//       .catch(err => {
+//         item.status = localizeStatus("Failed");
+//         console.error('Backend error:', err);
+//         updateQueueDisplay();
+//         alert('Server error or download failed.');
+//       });
+//     item.progress = 100;
+//     logList.push(`Downloaded: ${item.fileName} (${item.title})`);
+//   }
+
+//   const previousLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
+//   const updatedLogs = previousLogs.concat(logList);
+//   localStorage.setItem('downloadLogs', JSON.stringify(updatedLogs));
+//   document.getElementById('logContainer').innerHTML = updatedLogs.map(l => `<div>📝 ${l}</div>`).join('');
+// }
 async function processQueue() {
   const logList = [];
+
   for (let i = 0; i < downloadQueue.length; i++) {
     const item = downloadQueue[i];
     if (item.status !== localizeStatus("Queued") && item.status !== localizeStatus("Paused")) continue;
-    item.status = localizeStatus("Downloading");
-    updateQueueDisplay();
-    for (let p = 0; p <= 100; p += 10) {
-      if (isPaused) {
-        item.status = localizeStatus("Paused");
-        updateQueueDisplay();
-        return;
-      }
-      item.progress = p;
-      updateQueueDisplay();
-      await new Promise(r => setTimeout(r, 200));
-    }
 
-    fetch('http://localhost:3000/download', {
+    item.status = localizeStatus("Downloading");
+    item.progress = 0;
+    updateQueueDisplay();
+
+    const response = await fetch('http://localhost:3000/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, format })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.fileUrl) {
-          const a = document.createElement('a');
-          a.href = `http://localhost:3000${data.fileUrl}`;
-          a.download = '';
-          a.click();
-          item.status = localizeStatus("Downloaded");
+      body: JSON.stringify({ url: item.url, format: item.format })
+    });
+
+    const result = await response.json();
+    if (!result.downloadId) {
+      item.status = localizeStatus("Failed");
+      updateQueueDisplay();
+      continue;
+    }
+
+    const downloadId = result.downloadId;
+    item.downloadId = downloadId;
+
+    const pollInterval = 2000;
+    const poll = setInterval(async () => {
+      const progressRes = await fetch(`http://localhost:3000/progress/${downloadId}`);
+      const progressData = await progressRes.json();
+
+      item.progress = progressData.progress || 0;
+      updateQueueDisplay();
+
+      if (progressData.error) {
+        clearInterval(poll);
+        item.retries = (item.retries || 0) + 1;
+
+        if (item.retries < 3) {
+          item.status = `Retrying... (${item.retries})`;
+          updateQueueDisplay();
+          await new Promise(r => setTimeout(r, 3000));
+          await processQueue(); // recursive retry
         } else {
           item.status = localizeStatus("Failed");
-          alert('Download failed: ' + data.message);
+          updateQueueDisplay();
         }
-        updateQueueDisplay();
-      })
-      .catch(err => {
-        item.status = localizeStatus("Failed");
-        console.error('Backend error:', err);
-        updateQueueDisplay();
-        alert('Server error or download failed.');
-      });
-    item.progress = 100;
-    logList.push(`Downloaded: ${item.fileName} (${item.title})`);
-  }
+        return;
+      }
 
-  const previousLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
-  const updatedLogs = previousLogs.concat(logList);
-  localStorage.setItem('downloadLogs', JSON.stringify(updatedLogs));
-  document.getElementById('logContainer').innerHTML = updatedLogs.map(l => `<div>📝 ${l}</div>`).join('');
+      if (progressData.done && progressData.file) {
+        clearInterval(poll);
+        item.status = localizeStatus("Downloaded");
+        item.progress = 100;
+        item.retries = 0;
+        updateQueueDisplay();
+
+        const a = document.createElement('a');
+        a.href = `http://localhost:3000/downloads/${progressData.file}`;
+        a.download = '';
+        a.click();
+
+        const logEntry = `✅ ${item.url} saved as ${progressData.file}`;
+        const previousLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
+        localStorage.setItem('downloadLogs', JSON.stringify([...previousLogs, logEntry]));
+        document.getElementById('logContainer').innerHTML = [...previousLogs, logEntry]
+          .map(l => `<div>📝 ${l}</div>`).join('');
+      }
+    }, pollInterval);
+  }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
   const themeSwitch = document.getElementById('themeSwitch');
   const modeLabel = document.getElementById('modeLabel');
   const langSelect = document.getElementById('langSelect');
 
-  document.getElementById('clearLogsBtn').onclick = () => {
-    localStorage.removeItem('downloadLogs');
-    document.getElementById('logContainer').innerHTML = '';
-  };
+  // document.getElementById('clearLogsBtn').onclick = () => {
+  //   localStorage.removeItem('downloadLogs');
+  //   document.getElementById('logContainer').innerHTML = '';
+  // };
 
-  document.getElementById('pauseBtn').onclick = () => isPaused = true;
-  document.getElementById('resumeBtn').onclick = () => { isPaused = false; processQueue(); };
+  // document.getElementById('pauseBtn').onclick = () => isPaused = true;
+  // document.getElementById('resumeBtn').onclick = () => { isPaused = false; processQueue(); };
 
-  document.getElementById('startDownloadsBtn').onclick = () => {
-    isPaused = false;
-    processQueue();
-  };
+  // document.getElementById('startDownloadsBtn').onclick = () => {
+  //   isPaused = false;
+  //   processQueue();
+  // };
 
-  document.getElementById('addToQueueBtn').onclick = () => {
-    const url = document.getElementById('urlInput').value.trim();
-    const format = document.getElementById('formatSelect').value;
-    if (!url) return alert("Please enter a URL.");
-    let extracted = '';
-    try {
-      const pathName = new URL(url).pathname;
-      const last = pathName.split('/').pop();
-      if (last.includes('.')) extracted = last;
-    } catch { }
-    let fallback = `file_${downloadQueue.length + 1}.${format}`;
-    let fileName = extracted || fallback;
+  // document.getElementById('addToQueueBtn').onclick = () => {
+  //   const url = document.getElementById('urlInput').value.trim();
+  //   const format = document.getElementById('formatSelect').value;
+  //   if (!url) return alert("Please enter a URL.");
+  //   let extracted = '';
+  //   try {
+  //     const pathName = new URL(url).pathname;
+  //     const last = pathName.split('/').pop();
+  //     if (last.includes('.')) extracted = last;
+  //   } catch { }
+  //   let fallback = `file_${downloadQueue.length + 1}.${format}`;
+  //   let fileName = extracted || fallback;
 
-    fetchMetadata(url, (meta) => {
-      const cleanTitle = meta?.title?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      if (cleanTitle) fileName = `${cleanTitle}.${format}`;
-      downloadQueue.push({
-        url, format, status: localizeStatus("Queued"), progress: 0,
-        fileName, title: meta?.title || '', thumbnail: meta?.thumbnail || ''
-      });
-      updateQueueDisplay();
-      document.getElementById('urlInput').value = '';
-    });
-  };
+  //   fetchMetadata(url, (meta) => {
+  //     const cleanTitle = meta?.title?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  //     if (cleanTitle) fileName = `${cleanTitle}.${format}`;
+  //     downloadQueue.push({
+  //       url, format, status: localizeStatus("Queued"), progress: 0,
+  //       fileName, title: meta?.title || '', thumbnail: meta?.thumbnail || ''
+  //     });
+  //     updateQueueDisplay();
+  //     document.getElementById('urlInput').value = '';
+  //   });
+  // };
 
   themeSwitch.onclick = () => {
     const isDark = document.body.classList.toggle('dark');
@@ -345,37 +436,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
-// ✅ Install modal logic
+// // ✅ Install modal logic
+// let deferredPrompt;
+
+// // Update beforeinstallprompt handler to show the floating button
+// window.addEventListener('beforeinstallprompt', (e) => {
+//   e.preventDefault();
+//   deferredPrompt = e;
+
+//   // Show popup after a short delay
+//   setTimeout(() => {
+//     document.getElementById('installPopup').style.display = 'flex';
+//     // Also show the floating install button
+//     const installBtn = document.getElementById('installBtn');
+//     if (installBtn) installBtn.style.display = 'block';
+//   }, 1500); // 1.5 second delay
+// });
+
+// document.getElementById('installPopupBtn').addEventListener('click', async () => {
+//   if (deferredPrompt) {
+//     deferredPrompt.prompt();
+//     const result = await deferredPrompt.userChoice;
+//     console.log(`User choice: ${result.outcome}`);
+//     deferredPrompt = null;
+//   }
+//   document.getElementById('installPopup').style.display = 'none';
+// });
+
+// document.getElementById('closePopup').addEventListener('click', () => {
+//   document.getElementById('installPopup').style.display = 'none';
+// });
+// // ✅ Install modal logic
+
+// ✅ PWA install popup logic
 let deferredPrompt;
 
-// Update beforeinstallprompt handler to show the floating button
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
 
-  // Show popup after a short delay
   setTimeout(() => {
-    document.getElementById('installPopup').style.display = 'flex';
-    // Also show the floating install button
-    const installBtn = document.getElementById('installBtn');
-    if (installBtn) installBtn.style.display = 'block';
-  }, 1500); // 1.5 second delay
+    const popup = document.getElementById('installPopup');
+    if (popup) popup.style.display = 'flex';
+  }, 1500);
 });
 
-document.getElementById('installPopupBtn').addEventListener('click', async () => {
+document.getElementById('installBtn')?.addEventListener('click', async () => {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
-    console.log(`User choice: ${result.outcome}`);
+    await deferredPrompt.userChoice;
     deferredPrompt = null;
   }
   document.getElementById('installPopup').style.display = 'none';
 });
 
-document.getElementById('closePopup').addEventListener('click', () => {
+document.getElementById('closePopup')?.addEventListener('click', () => {
   document.getElementById('installPopup').style.display = 'none';
 });
-// ✅ Install modal logic
 
 
 
