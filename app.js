@@ -268,6 +268,10 @@ async function processQueue() {
     const downloadId = result.downloadId;
     item.downloadId = downloadId;
 
+    let lastProgress = 0;
+    let noChangeCount = 0;
+
+
     const pollInterval = 2000;
     const poll = setInterval(async () => {
       const progressRes = await fetch(`http://localhost:3000/progress/${downloadId}`);
@@ -310,15 +314,6 @@ async function processQueue() {
         document.getElementById('logContainer').innerHTML = [...previousLogs, logEntry]
           .map(l => `<div>📝 ${l}</div>`).join('');
       }
-    }, pollInterval);
-
-
-    let lastProgress = 0;
-    let noChangeCount = 0;
-
-    const poll = setInterval(async () => {
-      const progressRes = await fetch(`http://localhost:3000/progress/${downloadId}`);
-      const progressData = await progressRes.json();
 
       if (progressData.progress === lastProgress) {
         noChangeCount++;
@@ -333,10 +328,14 @@ async function processQueue() {
         lastProgress = progressData.progress;
       }
 
-  ...
-}, 2000);
 
-}
+    }, 2000);
+    // }, pollInterval);
+
+
+
+
+  }
 }
 
 
