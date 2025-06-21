@@ -195,15 +195,24 @@ async function processQueue() {
           item.format === 'm4a' ? 'audio/mp4' :
             'audio/wav'
     });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = item.fileName;
-    a.click();
-    a.remove();
-    item.status = localizeStatus("Downloaded");
-    item.progress = 100;
-    logList.push(`✅ ${item.url} saved as ${item.fileName}`);
-    updateQueueDisplay();
+    try {
+      const response = await fetch(item.url);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = item.fileName;
+      a.click();
+      a.remove();
+      item.status = localizeStatus("Downloaded");
+      item.progress = 100;
+      logList.push(`✅ ${item.url} saved as ${item.fileName}`);
+      updateQueueDisplay();
+    } catch (err) {
+      item.status = localizeStatus("Failed");
+      logList.push(`❌ Failed to download: ${item.url}`);
+      updateQueueDisplay();
+    }
   }
 
   const previousLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
