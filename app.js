@@ -1,5 +1,7 @@
 import { translations } from './translations.js';
 
+const backendURL = 'https://my-multidownload-backend-server.onrender.com'; // ✅ update with your live URL
+
 let downloadQueue = [];
 let isPaused = false;
 let currentLang = "en";
@@ -50,8 +52,6 @@ function updateQueueDisplay() {
     qList.appendChild(el);
   });
 }
-
-// ✅ Register so nested functions (like async callbacks) can access it
 window.updateQueueDisplay = updateQueueDisplay;
 
 function fetchMetadata(url, callback) {
@@ -120,7 +120,7 @@ async function processQueue() {
     }
 
     try {
-      const res = await fetch('https://my-multidownload-backend-server.onrender.com', {
+      const res = await fetch(`${backendURL}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: item.url, format: item.format })
@@ -129,7 +129,7 @@ async function processQueue() {
       const data = await res.json();
       if (data.fileUrl) {
         const a = document.createElement('a');
-        a.href = `https://my-multidownload-backend-server.onrender.com${data.fileUrl}`;
+        a.href = `${backendURL}${data.fileUrl}`;
         a.download = '';
         a.click();
         item.status = localizeStatus("Downloaded");
@@ -158,32 +158,25 @@ function setButtonHandlers() {
   const { addQueue, start, pause, resume, clearLogs } = selectors.buttons;
 
   addQueue().onclick = () => {
-    console.log("🟢 Add to Queue clicked");
     addToQueue();
   };
   start().onclick = () => {
-    console.log("🟢 Start Downloads clicked");
     isPaused = false;
     processQueue();
   };
   pause().onclick = () => {
-    console.log("🟢 Pause clicked");
     isPaused = true;
   };
   resume().onclick = () => {
-    console.log("🟢 Resume clicked");
     isPaused = false;
     processQueue();
   };
   clearLogs().onclick = () => {
-    console.log("🟢 Clear Logs clicked");
     clearLogs();
   };
 }
 
 function init() {
-  console.log("✅ init() function is executing");
-
   setButtonHandlers();
   applyTranslations(localStorage.getItem('lang') || 'en');
 
@@ -206,5 +199,4 @@ function init() {
   };
 }
 
-console.log("✅ app.js loaded");
 document.addEventListener('DOMContentLoaded', init);
