@@ -317,6 +317,36 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logContainer').innerHTML = storedLogs.map(l => `<div>📝 ${l}</div>`).join('');
 });
 
+// ✅ Install modal logic
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // Show popup after a short delay
+  setTimeout(() => {
+    document.getElementById('installPopup').style.display = 'flex';
+  }, 1500); // 1.5 second delay
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    console.log(`User choice: ${result.outcome}`);
+    deferredPrompt = null;
+  }
+  document.getElementById('installPopup').style.display = 'none';
+});
+
+document.getElementById('closePopup').addEventListener('click', () => {
+  document.getElementById('installPopup').style.display = 'none';
+});
+// ✅ Install modal logic
+
+
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
@@ -345,31 +375,7 @@ if ('serviceWorker' in navigator) {
   }
 
 
-  let deferredPrompt;
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-
-    // Show popup after a short delay
-    setTimeout(() => {
-      document.getElementById('installPopup').style.display = 'flex';
-    }, 1500); // 1.5 second delay
-  });
-
-  document.getElementById('installBtn').addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const result = await deferredPrompt.userChoice;
-      console.log(`User choice: ${result.outcome}`);
-      deferredPrompt = null;
-    }
-    document.getElementById('installPopup').style.display = 'none';
-  });
-
-  document.getElementById('closePopup').addEventListener('click', () => {
-    document.getElementById('installPopup').style.display = 'none';
-  });
 }
 
 
