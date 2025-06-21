@@ -315,11 +315,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const storedLogs = JSON.parse(localStorage.getItem('downloadLogs') || '[]');
   document.getElementById('logContainer').innerHTML = storedLogs.map(l => `<div>📝 ${l}</div>`).join('');
+
+  // Install button logic for floating button
+  const installBtn = document.getElementById('installBtn');
+  if (installBtn) {
+    installBtn.style.display = 'none'; // Hide by default
+    installBtn.onclick = async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const result = await deferredPrompt.userChoice;
+        console.log(`User choice: ${result.outcome}`);
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      }
+    };
+  }
+
 });
 
 // ✅ Install modal logic
 let deferredPrompt;
 
+// Update beforeinstallprompt handler to show the floating button
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
@@ -327,6 +344,9 @@ window.addEventListener('beforeinstallprompt', (e) => {
   // Show popup after a short delay
   setTimeout(() => {
     document.getElementById('installPopup').style.display = 'flex';
+    // Also show the floating install button
+    const installBtn = document.getElementById('installBtn');
+    if (installBtn) installBtn.style.display = 'block';
   }, 1500); // 1.5 second delay
 });
 
