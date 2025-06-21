@@ -268,10 +268,6 @@ async function processQueue() {
     const downloadId = result.downloadId;
     item.downloadId = downloadId;
 
-    let lastProgress = 0;
-    let noChangeCount = 0;
-
-
     const pollInterval = 2000;
     const poll = setInterval(async () => {
       const progressRes = await fetch(`http://localhost:3000/progress/${downloadId}`);
@@ -315,22 +311,8 @@ async function processQueue() {
           .map(l => `<div>📝 ${l}</div>`).join('');
       }
 
-      if (progressData.progress === lastProgress) {
-        noChangeCount++;
-        if (noChangeCount > 10) { // 10 x 2s = 20s
-          clearInterval(poll);
-          item.status = localizeStatus("Failed");
-          updateQueueDisplay();
-          return;
-        }
-      } else {
-        noChangeCount = 0;
-        lastProgress = progressData.progress;
-      }
 
-
-    }, 2000);
-    // }, pollInterval);
+    }, pollInterval);
 
 
 
