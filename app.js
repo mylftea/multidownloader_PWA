@@ -311,7 +311,32 @@ async function processQueue() {
           .map(l => `<div>📝 ${l}</div>`).join('');
       }
     }, pollInterval);
-  }
+
+
+    let lastProgress = 0;
+    let noChangeCount = 0;
+
+    const poll = setInterval(async () => {
+      const progressRes = await fetch(`http://localhost:3000/progress/${downloadId}`);
+      const progressData = await progressRes.json();
+
+      if (progressData.progress === lastProgress) {
+        noChangeCount++;
+        if (noChangeCount > 10) { // 10 x 2s = 20s
+          clearInterval(poll);
+          item.status = localizeStatus("Failed");
+          updateQueueDisplay();
+          return;
+        }
+      } else {
+        noChangeCount = 0;
+        lastProgress = progressData.progress;
+      }
+
+  ...
+}, 2000);
+
+}
 }
 
 
